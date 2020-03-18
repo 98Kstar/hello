@@ -1,0 +1,80 @@
+https://www.google.com/search?q=zkd.me+develop.dog&oq=zkd.me+develop.dog&aqs=chrome..69i57.952j0j7&sourceid=chrome&ie=UTF-8
+
+1、打开fiddler,选择fiddler脚本跳转到 OnBeforeRequest函数 （Fiddler Script  > OnBeforeRequest）
+2.在该函数结尾的大括号内添加下列代码并保存 (https抓包证书配置正确抓包结果出现Tunnel to 443，加下列代码重新生成证书)
+
+static function OnBeforeRequest(oSession: Session) {
+// Sample Rule: Color ASPX requests in RED
+// if (oSession.uriContains(".aspx")) { oSession["ui-color"] = "red";   }
+// Sample Rule: Flag POSTs to fiddler2.com in italics
+// if (oSession.HostnameIs("www.fiddler2.com") && oSession.HTTPMethodIs("POST")) {  oSession["ui-italic"] = "yup";  }
+// Sample Rule: Break requests for URLs containing "/sandbox/"
+// if (oSession.uriContains("/sandbox/")) {
+//     oSession.oFlags["x-breakrequest"] = "yup";   // Existence of the x-breakrequest flag creates a breakpoint; the "yup" value is unimportant.
+// }
+if ((null != gs_ReplaceToken) && (oSession.url.indexOf(gs_ReplaceToken)>-1)) {   // Case sensitive
+oSession.url = oSession.url.Replace(gs_ReplaceToken, gs_ReplaceTokenWith); 
+}
+if ((null != gs_OverridenHost) && (oSession.host.toLowerCase() == gs_OverridenHost)) {
+oSession["x-overridehost"] = gs_OverrideHostWith; 
+}
+if ((null!=bpRequestURI) && oSession.uriContains(bpRequestURI)) {
+oSession["x-breakrequest"]="uri";
+}
+if ((null!=bpMethod) && (oSession.HTTPMethodIs(bpMethod))) {
+oSession["x-breakrequest"]="method";
+}
+if ((null!=uiBoldURI) && oSession.uriContains(uiBoldURI)) {
+oSession["ui-bold"]="QuickExec";
+}
+if (m_SimulateModem) {
+// Delay sends by 300ms per KB uploaded.
+oSession["request-trickle-delay"] = "300"; 
+// Delay receives by 150ms per KB downloaded.
+oSession["response-trickle-delay"] = "150"; 
+}
+if (m_DisableCaching) {
+oSession.oRequest.headers.Remove("If-None-Match");
+oSession.oRequest.headers.Remove("If-Modified-Since");
+oSession.oRequest["Pragma"] = "no-cache";
+}
+// User-Agent Overrides
+if (null != sUA) {
+oSession.oRequest["User-Agent"] = sUA; 
+}
+if (m_Japanese) {
+oSession.oRequest["Accept-Language"] = "ja";
+}
+if (m_AutoAuth) {
+// Automatically respond to any authentication challenges using the 
+// current Fiddler user's credentials. You can change (default)
+// to a domain\\username:password string if preferred.
+//
+// WARNING: This setting poses a security risk if remote 
+// connections are permitted!
+oSession["X-AutoAuth"] = "(default)";
+}
+if (m_AlwaysFresh && (oSession.oRequest.headers.Exists("If-Modified-Since") || oSession.oRequest.headers.Exists("If-None-Match")))
+{
+oSession.utilCreateResponseAndBypassServer();
+oSession.responseCode = 304;
+oSession["ui-backcolor"] = "Lavender";
+}
+var hosts = 'zkd.me develop.dog';
+FiddlerApplication.Log.LogFormat("Logger session {0}, Url: {1}, isHttps: {2}, port: {3}", oSession.id, oSession.fullUrl, oSession.isHTTPS, oSession.port);
+if(hosts.indexOf(oSession.host) > -1){
+FiddlerApplication.Log.LogFormat("Capture session {0}, Url: {1}, isHttps: {2}, port: {3}", oSession.id, oSession.fullUrl, oSession.isHTTPS, oSession.port);
+if(oSession.HTTPMethodIs('CONNECT')){
+FiddlerApplication.Log.LogString('create fake tunnel response');
+oSession['x-replywithtunnel'] = 'FakeTunnel';
+return;
+}
+if (oSession.isHTTPS){
+FiddlerApplication.Log.LogString('switch https to http request');
+oSession.fullUrl = oSession.fullUrl.Replace("https://","http://");
+oSession.port = 80;
+}   
+FiddlerApplication.Log.LogFormat("Processed session {0}, Url: {1}, isHttps: {2}, port: {3}", oSession.id, oSession.fullUrl, oSession.isHTTPS, oSession.port);
+}
+FiddlerApplication.Log.LogFormat("Logger session {0}, Url: {1}, isHttps: {2}, port: {3}", oSession.id, oSession.fullUrl, oSession.isHTTPS, oSession.port);
+}
